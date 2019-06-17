@@ -6,7 +6,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -15,7 +14,6 @@ import (
 	"strings"
 )
 
-// Contains all the information about user's information
 type Profile struct {
 	Username    string `json:"username"`
 	Firstname   string `json:"firstName"`
@@ -25,44 +23,91 @@ type Profile struct {
 	Password    string `json:"password"`
 	Verified    string `json:"verified"`
 }
-
 // Struct to contain page information
+
+type Response struct {
+	Code    int    `json:"code"`
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// Struct to store http response
+
 type UpdateInfo struct {
+	Username    string `json:"username"`
 	Email       string `json:"email"`
 	Description string `json:"description"`
 }
 
-//Struct to store updated information
+// Struct to store updated information
+
 type PublicInfo struct {
 	Username    string `json:"username"`
 	Description string `json:"description"`
 }
 
-//Struct to store public page information
+// Struct to store public page information
+
 type LogInfo struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// Struct to store login information
+var token = ""
+
+// initialize the token with an empty string at first
+
+// Save the edited information to backend
+func (p *Profile) saveToBackend() error {
+	link := "http://localhost:8080/v1/accounts/@me?token=" + token
+	client := &http.Client{}
+	updateInfo := UpdateInfo{}
+	updateInfo.Username = p.Username
+	updateInfo.Email = p.Email
+	updateInfo.Description = p.Description
+	jsonData, err := json.Marshal(updateInfo)
+	if err != nil {
+		log.Fatal(err)
+	}
+	Data := string(jsonData)
+	// Encode the information to byte payload
+	payload := strings.NewReader(Data)
+	request, err := http.NewRequest("PUT", link, payload)
+	request.Header.Add("Content-Type", "application/json")
+	_, err = client.Do(request)
+	client.CloseIdleConnections()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return err
+}
+
 // Preload the information by fetching data from backend
 func readFromBackend(userid string) (*Profile, error) {
-	apiUrl := "http://localhost:8080/v1/accounts/@me"
+	apiUrl := "http://localhost:8080/v1/accounts/@me?token=" + token
 	res, err := http.Get(apiUrl)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	defer res.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(res.Body)
-	// Extract data from response and turn to pageInfo type
-	var pageInfo Profile
-	err = json.Unmarshal(bodyBytes, &pageInfo)
+	var responseInfo Response
+	err = json.Unmarshal(bodyBytes, &responseInfo)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
+	}
+	// Extract the data from http response and generate data to render backend pages
+	data := responseInfo.Message
+	var pageInfo Profile
+	err = json.Unmarshal([]byte(data), &pageInfo)
+	if err != nil {
+		log.Fatal(err)
 	}
 	return &pageInfo, err
 }
 
-// Function to read public information without login and render the web pages
+//Function to read public information without login and render the web pages
 func readFromPublic(username string) (*PublicInfo, error) {
 	link := "http://localhost:8080/v1/accounts/" + username
 	resp, err := http.Get(link)
@@ -70,23 +115,27 @@ func readFromPublic(username string) (*PublicInfo, error) {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	var pageData PublicInfo
-	err = json.Unmarshal(bodyBytes, &pageData)
+	var responseInfo Response
+	err = json.Unmarshal(bodyBytes, &responseInfo)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
+	}
+	data := responseInfo.Message
+	var pageData PublicInfo
+	err = json.Unmarshal([]byte(data), &pageData)
+	if err != nil {
+		log.Fatal(err)
 	}
 	return &pageData, err
 }
 
-//
 func accountsHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := readFromPublic(title)
 	if err != nil {
-		log.Println(err)
+		http.Redirect(w, r, "/accounts/oscarwilde", http.StatusFound)
+		return
 	}
-
 	page := Profile{}
 	page.Username = p.Username
 	page.Description = p.Description
@@ -94,66 +143,46 @@ func accountsHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 // Render the edit information page
+
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := readFromBackend(title)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	renderTemplate(w, "edit", p)
 }
 
 // The Function to save the edited information
+
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	email := r.FormValue("email")
 	description := r.FormValue("description")
 	originalPage, err := readFromBackend(title)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-	// Get cookie from browser
-	cookie, err := r.Cookie("name-cookie")
 	// Change the information from preloaded information
 	originalPage.Email = email
 	originalPage.Description = description
-	updateInfo := UpdateInfo{}
-	updateInfo.Email = email
-	updateInfo.Description = description
-	// Json format transformation
-	jsonData, err := json.Marshal(updateInfo)
+	err = originalPage.saveToBackend()
 	if err != nil {
-		log.Println(err)
-	}
-	Data := string(jsonData)
-	payload := strings.NewReader(Data)
-	// Send http request
-	link := "http://localhost:8080/v1/accounts/@me?token=" + cookie.Value
- 	client := &http.Client{}
-	request, err := http.NewRequest("PUT", link, payload)
-	request.Header.Add("Content-Type", "application/json")
-	_, err = client.Do(request)
-	client.CloseIdleConnections()
-	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	// After edited it redirect to the private information page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
 
-// Load html template
-var templates = template.Must(template.ParseFiles("template/edit.html", "template/accounts.html", "template/register.html", "template/login.html", "template/public_profile.html", "template/profile.html", "template/loginError.html", "template/ChangePassword.html"))
+var templates = template.Must(template.ParseFiles("template/edit.html", "template/accounts.html", "template/register.html", "template/login.html", "template/public_profile.html", "template/profile.html"))
 
-//
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Profile) {
 	err := templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-
 // Regular expression to avoid illegal request
-var validPath = regexp.MustCompile("^(/(edit|accounts|home)/([a-zA-Z0-9]+))|(/(login|home|create|privatePage|register|logout|save|loginError)/)$")
+var validPath = regexp.MustCompile("^(/(edit|save|accounts|home)/([a-zA-Z0-9]+))|(/(login|home|create|privatePage|register)/)$")
 
-//
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
@@ -165,17 +194,6 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 	}
 }
 
-//
-func passwordHandler()  {
-
-}
-
-//
-func savepasswordHandler() {
-
-}
-
-//
 func createHandler(w http.ResponseWriter, r *http.Request, title string){
 	var pageinfo Profile
 	pageinfo.Username = r.FormValue("username")
@@ -185,58 +203,33 @@ func createHandler(w http.ResponseWriter, r *http.Request, title string){
 	pageinfo.Password = r.FormValue("password")
 	pageinfo.Email = r.FormValue("email")
 	pageinfo.Verified = "true"
-	// Read information from frontend page
 	newUser, err := json.Marshal(pageinfo)
 	if err != nil {
-		log.Println(err)
+		log.Fatal()
 	}
 	Data := string(newUser)
 	payload := strings.NewReader(Data)
-	// Encode data to Json
 	_, err = http.Post("http://localhost:8080/v1/accounts/", "application/json", payload)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-	// Send the request to create a new account
-
-	user := LogInfo{}
-	user.Username = pageinfo.Username
-	user.Password = pageinfo.Password
-	userData, err := json.Marshal(user)
-	userString := string(userData)
-	payload = strings.NewReader(userString)
-	response, err := http.Post("http://localhost:8080/v1/sessions/", "application/json", payload)
+	err = login(pageinfo.Username, pageinfo.Password)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-	// Log in with newly created account information
-	// Get token from login response from backend
-	token := response.Header.Get("Set-Cookie")
-	Cookie := http.Cookie{Name:"name-cookie",
-		Value: token,
-		Path: "/",
-		HttpOnly:true}
-	http.SetCookie(w, &Cookie)
-	// Set the cookie to the browser
-	if err != nil {
-		log.Println(err)
-	}
-	// After log in, redirect to the personal private page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
 
 // Handle the login page
+
 func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p := Profile{}
 	renderTemplate(w, "login", &p)
 }
 
-//
-func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
-	// Get user login in information
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-	// Encode the log in data to the json format payload
+// Do the login job and set the token
+
+func login(username string, password string) error {
 	user := LogInfo{}
 	user.Username = username
 	user.Password = password
@@ -244,69 +237,51 @@ func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
 	userString := string(userData)
 	payload := strings.NewReader(userString)
 	response, err := http.Post("http://localhost:8080/v1/sessions/", "application/json", payload)
-	if response.StatusCode == 401 {
-		http.Redirect(w, r, "/loginError/", http.StatusFound)
-	}
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	// Get token from login response from backend
-	token := response.Header.Get("Set-Cookie")
-	fmt.Println(token)
-	// Set the cookies to the browser
-	Cookie := http.Cookie{Name:"name-cookie",
-		Value: token,
-		Path:"/",
-		HttpOnly:true}
-	http.SetCookie(w, &Cookie)
+	token = response.Header.Get("Set-Cookie")
+	return err
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
+	// Get user login in information
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	//User information struct
+	err := login(username, password)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// After login, redirect to private page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
 
-//
 func registerHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p := Profile{}
 	renderTemplate(w, "register", &p)
 }
 
-//
 func privateHandler(w http.ResponseWriter, r *http.Request, title string) {
-	//fmt.Println("Cookie.......")
-	// Read cookie from browser
-	cookie,_ := r.Cookie("name-cookie")
-	link := "http://localhost:8080/v1/accounts/@me?token="+ cookie.Value
+	link := "http://localhost:8080/v1/accounts/@me?token=" + token
 	resp, err := http.Get(link)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	// Read personal profile data from backend and transform to our data format
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	var pageInfo = Profile{}
-	err = json.Unmarshal(bodyBytes, &pageInfo)
-	fmt.Println(pageInfo)
+	var responseInfo Response
+	err = json.Unmarshal(bodyBytes, &responseInfo)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
+	data := responseInfo.Message
+	var pageInfo Profile
+	err = json.Unmarshal([]byte(data), &pageInfo)
 	renderTemplate(w, "profile", &pageInfo)
 }
 
-// Handle error when having wrong password and let user to re-enter password
-func errorPasswordHandler(w http.ResponseWriter, r *http.Request, title string){
-	p := Profile{}
-	renderTemplate(w, "loginError", &p)
-}
-
-// When user need to log out, this handler would erase the cookie to clean up the log in status.
-func logoutHandler(w http.ResponseWriter, r *http.Request, title string){
-	logOutCookie := http.Cookie{Name:"name-cookie",
-		Path:"/",
-		MaxAge:-1}
-	http.SetCookie(w, &logOutCookie)
-	http.Redirect(w, r, "/home/",http.StatusFound)
-}
-
-
-//
 func main() {
 	http.HandleFunc("/accounts/", makeHandler(accountsHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
@@ -316,7 +291,5 @@ func main() {
 	http.HandleFunc("/login/", makeHandler(loginHandler))
 	http.HandleFunc("/home/", makeHandler(homeHandler))
 	http.HandleFunc("/privatePage/", makeHandler(privateHandler))
-	http.HandleFunc("/logout/", makeHandler(logoutHandler))
-	http.HandleFunc("/loginError/", makeHandler(errorPasswordHandler))
-	log.Println(http.ListenAndServe(":5000", nil))
+	log.Fatal(http.ListenAndServe(":5000", nil))
 }
