@@ -1,9 +1,9 @@
 language: go
 
-
 go:
   - "1.12.5"
 
 script:
   - go run request_handler.go &
+  - sleep 30
 
