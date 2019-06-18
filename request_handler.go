@@ -29,15 +29,13 @@ type Page struct {
 	Description string
 }
 
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func readLines(path string) ([]string, error) {
 	file, err := os.Open(path)
-	check(err)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	defer file.Close()
 
@@ -54,41 +52,37 @@ func (p *Page) save() error {
 	filename := "fakedb/" + p.Username + ".txt"
 	values := []string{p.Username, p.Firstname, p.Lastname, p.Email, p.CreateTs, p.UpdateTs, p.Description}
 	buffer := []byte(strings.Join(values, "\n"))
-
 	return ioutil.WriteFile(filename, buffer, 0600)
 }
 
 func loadPage(title string) (*Page, error) {
 	filename := "fakedb/" + title + ".txt"
-
 	lines, err := readLines(filename)
-	check(err)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	username, firstname, lastname, email, createTs, updateTs, description := lines[0], lines[1], lines[2], lines[3], lines[4], lines[5], lines[6]
-
 	return &Page{Username: username, Firstname: firstname, Lastname: lastname, Email: email, CreateTs: createTs, UpdateTs: updateTs, Description: description}, nil
 }
 
 func accountsHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
-
 	if err != nil {
 		http.Redirect(w, r, "/accounts/oscarwilde", http.StatusFound)
 		return
 	}
-
 	renderTemplate(w, "accounts", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
-	check(err)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	renderTemplate(w, "edit", p)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
-
 	username := r.FormValue("username")
 	firstname := r.FormValue("firstname")
 	lastname := r.FormValue("lastname")
@@ -96,12 +90,11 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	createTs := r.FormValue("createTs")
 	updateTs := r.FormValue("updateTs")
 	description := r.FormValue("description")
-
 	p := &Page{Username: username, Firstname: firstname, Lastname: lastname, Email: email, CreateTs: createTs, UpdateTs: updateTs, Description: description}
 	err := p.save()
-
-	check(err)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	http.Redirect(w, r, "/accounts/"+username, http.StatusFound)
 }
 
@@ -131,7 +124,6 @@ func main() {
 	http.HandleFunc("/accounts/", makeHandler(accountsHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 	http.HandleFunc("/save/", makeHandler(saveHandler))
-
 	log.Fatal(http.ListenAndServe(":5000", nil))
 }
 
