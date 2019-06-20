@@ -194,7 +194,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 	}
 }
 
-func createHandler(w http.ResponseWriter, r *http.Request, title string) {
+func createHandler(w http.ResponseWriter, r *http.Request, title string){
 	var pageinfo Page
 	pageinfo.Username = r.FormValue("username")
 	pageinfo.Firstname = r.FormValue("firstname")
@@ -203,7 +203,6 @@ func createHandler(w http.ResponseWriter, r *http.Request, title string) {
 	pageinfo.Password = r.FormValue("password")
 	pageinfo.Email = r.FormValue("email")
 	pageinfo.Verified = "true"
-	//pageinfo.CreateTs = t.Format("1514827948000")
 	newUser, err := json.Marshal(pageinfo)
 	if err != nil {
 		log.Fatal()
@@ -214,7 +213,11 @@ func createHandler(w http.ResponseWriter, r *http.Request, title string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.Redirect(w, r, "/home/", http.StatusFound)
+	err = login(pageinfo.Username, pageinfo.Password)
+	if err != nil {
+		log.Fatal(err)
+	}
+	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
 
 // Handle the login page
@@ -224,13 +227,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, "login", &p)
 }
 
-// Do the login job and get the token from backend
+// Do the login job and set the token
 
-func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
-	// Get user login in information
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-	//User information struct
+func login(username string, password string) error {
 	user := User{}
 	user.Username = username
 	user.Password = password
@@ -243,6 +242,18 @@ func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
 	}
 	// Get token from login response from backend
 	token = response.Header.Get("Set-Cookie")
+	return err
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
+	// Get user login in information
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	//User information struct
+	err := login(username, password)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// After login, redirect to private page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
