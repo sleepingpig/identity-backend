@@ -23,6 +23,7 @@ type Page struct {
 	Password    string `json:"password"`
 	Verified    string `json:"verified"`
 }
+// Struct to contain page information
 
 type Response struct {
 	Code    int    `json:"code"`
@@ -30,24 +31,34 @@ type Response struct {
 	Message string `json:"message"`
 }
 
+// Struct to store http response
+
 type UpdateInfo struct {
 	Username    string `json:"username"`
 	Email       string `json:"email"`
 	Description string `json:"description"`
 }
 
+// Struct to store updated information
+
 type PublicInfo struct {
 	Username    string `json:"username"`
 	Description string `json:"description"`
 }
+
+// Struct to store public page information
 
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// Struct to store login information
 var token = ""
 
+// initialize the token with an empty string at first
+
+// Save the edited information to backend
 func (p *Page) saveToBackend() error {
 	link := "http://localhost:8080/v1/accounts/@me?token=" + token
 	client := &http.Client{}
@@ -60,7 +71,7 @@ func (p *Page) saveToBackend() error {
 		log.Fatal(err)
 	}
 	Data := string(jsonData)
-
+	// Encode the information to byte payload
 	payload := strings.NewReader(Data)
 	request, err := http.NewRequest("PUT", link, payload)
 	request.Header.Add("Content-Type", "application/json")
@@ -72,6 +83,7 @@ func (p *Page) saveToBackend() error {
 	return err
 }
 
+// Preload the information by fetching data from backend
 func readFromBackend(userid string) (*Page, error) {
 	apiUrl := "http://localhost:8080/v1/accounts/@me?token=" + token
 	res, err := http.Get(apiUrl)
@@ -85,6 +97,7 @@ func readFromBackend(userid string) (*Page, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Extract the data from http response and generate data to render backend pages
 	data := responseInfo.Message
 	var pageInfo Page
 	err = json.Unmarshal([]byte(data), &pageInfo)
@@ -94,6 +107,7 @@ func readFromBackend(userid string) (*Page, error) {
 	return &pageInfo, err
 }
 
+//Function to read public information without login and render the web pages
 func readFromPublic(username string) (*PublicInfo, error) {
 	link := "http://localhost:8080/v1/accounts/" + username
 	resp, err := http.Get(link)
@@ -128,6 +142,8 @@ func accountsHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, "public_profile", &page)
 }
 
+// Render the edit information page
+
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := readFromBackend(title)
 	if err != nil {
@@ -136,16 +152,23 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, "edit", p)
 }
 
+// The Function to save the edited information
+
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	email := r.FormValue("email")
 	description := r.FormValue("description")
 	originalPage, err := readFromBackend(title)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Change the information from preloaded information
 	originalPage.Email = email
 	originalPage.Description = description
 	err = originalPage.saveToBackend()
 	if err != nil {
 		log.Fatal(err)
 	}
+	// After edited it redirect to the private information page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
 
@@ -157,7 +180,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-
+// Regular expression to avoid illegal request
 var validPath = regexp.MustCompile("^(/(edit|save|accounts|home)/([a-zA-Z0-9]+))|(/(login|home|create|privatePage|register)/)$")
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
@@ -194,10 +217,14 @@ func createHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/home/", http.StatusFound)
 }
 
+// Handle the login page
+
 func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p := Page{}
 	renderTemplate(w, "login", &p)
 }
+
+// Do the login job and get the token from backend
 
 func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
 	// Get user login in information
@@ -243,6 +270,7 @@ func privateHandler(w http.ResponseWriter, r *http.Request, title string) {
 	err = json.Unmarshal([]byte(data), &pageInfo)
 	renderTemplate(w, "profile", &pageInfo)
 }
+
 func main() {
 	http.HandleFunc("/accounts/", makeHandler(accountsHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
