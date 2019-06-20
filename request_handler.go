@@ -30,13 +30,23 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-var token = ""
-
 type UpdateInfo struct {
 	Username    string `json:"username"`
 	Email       string `json:"email"`
 	Description string `json:"description"`
 }
+
+type PublicInfo struct {
+	Username    string `json:"username"`
+	Description string `json:"description"`
+}
+
+type User struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+var token = ""
 
 func (p *Page) saveToBackend() error {
 	link := "http://localhost:8080/v1/accounts/@me?token=" + token
@@ -82,11 +92,6 @@ func readFromBackend(userid string) (*Page, error) {
 		log.Fatal(err)
 	}
 	return &pageInfo, err
-}
-
-type PublicInfo struct {
-	Username    string `json:"username"`
-	Description string `json:"description"`
 }
 
 func readFromPublic(username string) (*PublicInfo, error) {
@@ -164,11 +169,6 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 		}
 		fn(w, r, m[3])
 	}
-}
-
-type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 func createHandler(w http.ResponseWriter, r *http.Request, title string) {
