@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-type Page struct {
+type Profile struct {
 	Username    string `json:"username"`
 	Firstname   string `json:"firstName"`
 	Lastname    string `json:"lastName"`
@@ -48,7 +48,7 @@ type PublicInfo struct {
 
 // Struct to store public page information
 
-type User struct {
+type LogInfo struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -59,7 +59,7 @@ var token = ""
 // initialize the token with an empty string at first
 
 // Save the edited information to backend
-func (p *Page) saveToBackend() error {
+func (p *Profile) saveToBackend() error {
 	link := "http://localhost:8080/v1/accounts/@me?token=" + token
 	client := &http.Client{}
 	updateInfo := UpdateInfo{}
@@ -84,7 +84,7 @@ func (p *Page) saveToBackend() error {
 }
 
 // Preload the information by fetching data from backend
-func readFromBackend(userid string) (*Page, error) {
+func readFromBackend(userid string) (*Profile, error) {
 	apiUrl := "http://localhost:8080/v1/accounts/@me?token=" + token
 	res, err := http.Get(apiUrl)
 	if err != nil {
@@ -99,7 +99,7 @@ func readFromBackend(userid string) (*Page, error) {
 	}
 	// Extract the data from http response and generate data to render backend pages
 	data := responseInfo.Message
-	var pageInfo Page
+	var pageInfo Profile
 	err = json.Unmarshal([]byte(data), &pageInfo)
 	if err != nil {
 		log.Fatal(err)
@@ -136,7 +136,7 @@ func accountsHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Redirect(w, r, "/accounts/oscarwilde", http.StatusFound)
 		return
 	}
-	page := Page{}
+	page := Profile{}
 	page.Username = p.Username
 	page.Description = p.Description
 	renderTemplate(w, "public_profile", &page)
@@ -174,7 +174,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 var templates = template.Must(template.ParseFiles("template/edit.html", "template/accounts.html", "template/register.html", "template/login.html", "template/public_profile.html", "template/profile.html"))
 
-func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Profile) {
 	err := templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 }
 
 func createHandler(w http.ResponseWriter, r *http.Request, title string){
-	var pageinfo Page
+	var pageinfo Profile
 	pageinfo.Username = r.FormValue("username")
 	pageinfo.Firstname = r.FormValue("firstname")
 	pageinfo.Lastname = r.FormValue("lastname")
@@ -223,14 +223,14 @@ func createHandler(w http.ResponseWriter, r *http.Request, title string){
 // Handle the login page
 
 func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p := Page{}
+	p := Profile{}
 	renderTemplate(w, "login", &p)
 }
 
 // Do the login job and set the token
 
 func login(username string, password string) error {
-	user := User{}
+	user := LogInfo{}
 	user.Username = username
 	user.Password = password
 	userData, err := json.Marshal(user)
@@ -259,7 +259,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p := Page{}
+	p := Profile{}
 	renderTemplate(w, "register", &p)
 }
 
@@ -277,7 +277,7 @@ func privateHandler(w http.ResponseWriter, r *http.Request, title string) {
 		log.Fatal(err)
 	}
 	data := responseInfo.Message
-	var pageInfo Page
+	var pageInfo Profile
 	err = json.Unmarshal([]byte(data), &pageInfo)
 	renderTemplate(w, "profile", &pageInfo)
 }
