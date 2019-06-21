@@ -12,19 +12,32 @@
       <h1>Log in</h1>
       <p>Please use your username and password to login.</p>
       <hr>
-
-      <label for="Username"><b>Username</b></label>
-      <input type="text" placeholder="Enter username" name="username" required>
-
-      <label for="password"><b>Password</b></label>
-      <input type="text" placeholder="Enter Password" name="password" required>
-
+      <div class = "container">
+          <div class = "input-group">
+              <div class = "input-group-prepend">
+                  <span class = "input-group-text">Username</span>
+              </div>
+              <input type="text" class = "form-control" placeholder="Enter username" name="username" required>
+              <div class = "input-group-prepend">
+                  <span class = "input-group-text">Password</span>
+              </div>
+              <input type="psw" class = "form-control" placeholder="Enter Password" name="password" required>
+          </div>
+{{/*        <div class = "row">*/}}
+{{/*          <label for="Username"><b>Username</b></label>*/}}
+{{/*          <input type="text" placeholder="Enter username" name="username" required>*/}}
+{{/*        </div>*/}}
+{{/*        <div class = "row">*/}}
+{{/*          <label for="password"><b>Password</b></label>*/}}
+{{/*          <input type="text" placeholder="Enter Password" name="password" required>*/}}
+{{/*        </div>*/}}
+      </div>
       <div><input class = "btn btn-primary" type="submit" value="Login"></div>
     </div>
 
-    <div class="">
-      <p>Forget your password? <a href="#">Reset password</a>.</p>
-    </div>
+{{/*    <div class="">*/}}
+{{/*      <p>Forget your password? <a href="#">Reset password</a>.</p>*/}}
+{{/*    </div>*/}}
   </form>
 </div>
 </body>
