@@ -1,14 +1,14 @@
-language: go
-
-#script:
-#  - go run request_handler.go &
-#  - sleep 30
-#  - go test
-
-
-go:
-- "1.12.5"
-- master
+#language: go
+#
+##script:
+##  - go run request_handler.go &
+##  - sleep 30
+##  - go test
+#
+#
+#go:
+#- "1.12.5"
+#- master
 
 
 
