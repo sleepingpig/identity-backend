@@ -1,6 +1,14 @@
 language: go
 
-# The frontend need to be run together with backend service so it is difficult to run in travis to commment out this
+#script:
+#  - go run request_handler.go &
+#  - sleep 30
+#  - go test
+
+
+go:
+- "1.12.5"
+- master
 
 
 
