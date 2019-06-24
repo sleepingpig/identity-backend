@@ -6,7 +6,7 @@ package main
 
 import (
 	"encoding/json"
-	"html/template"
+	"text/template"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -54,7 +54,7 @@ type LogInfo struct {
 }
 
 // Struct to store login information
-var token = ""
+
 
 // initialize the token with an empty string at first
 
@@ -229,7 +229,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 // Do the login job and set the token
 
-func login(username string, password string) error {
+func login(username string, password string) (error,string) {
 	user := LogInfo{}
 	user.Username = username
 	user.Password = password
@@ -241,8 +241,8 @@ func login(username string, password string) error {
 		log.Fatal(err)
 	}
 	// Get token from login response from backend
-	token = response.Header.Get("Set-Cookie")
-	return err
+	var token = response.Header.Get("Set-Cookie")
+	return err,token
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -250,10 +250,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request, title string) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	//User information struct
-	err := login(username, password)
+	err, token := login(username, password)
 	if err != nil {
 		log.Fatal(err)
 	}
+	cookie := http.Cookie{Name:token}
+	http.SetCookie(w,&cookie)
 	// After login, redirect to private page
 	http.Redirect(w, r, "/privatePage/", http.StatusFound)
 }
@@ -264,7 +266,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func privateHandler(w http.ResponseWriter, r *http.Request, title string) {
-	link := "http://localhost:8080/v1/accounts/@me?token=" + token
+	link := "http://localhost:8080/v1/accounts/@me"
 	resp, err := http.Get(link)
 	if err != nil {
 		log.Fatal(err)
